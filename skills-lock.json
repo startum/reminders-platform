@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "zapier-sdk": {
+      "source": "zapier/sdk",
+      "sourceType": "github",
+      "skillPath": "skills/zapier-sdk/SKILL.md",
+      "computedHash": "b8eb3c908ad3d8f6cb775c2aa3419d9fe292754600e4024b600894545da6e5f0"
+    }
+  }
+}
