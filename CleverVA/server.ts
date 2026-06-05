@@ -48,7 +48,7 @@ export function createServer(db: Store) {
 
   app.delete("/api/reminders/:id", (req, res) => {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
+    if (!Number.isInteger(id) || id <= 0) {
       res.status(400).json({ error: "invalid id" });
       return;
     }
