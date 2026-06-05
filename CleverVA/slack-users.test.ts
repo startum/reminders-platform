@@ -69,3 +69,29 @@ test("cache refetches after the TTL elapses", async () => {
   await cache.get();
   assert.equal(calls, 2);
 });
+
+test("toPeople falls back to id when no name fields are present", () => {
+  const people = toPeople([
+    { id: "UEMPTY", name: "", real_name: "", is_bot: false, is_app_user: false, deleted: false },
+  ]);
+  assert.deepEqual(people, [{ id: "UEMPTY", name: "UEMPTY" }]);
+});
+
+test("concurrent get() calls share a single fetch", async () => {
+  let calls = 0;
+  let resolveFetch;
+  const fetcher = () => {
+    calls++;
+    return new Promise((resolve) => { resolveFetch = () => resolve([{ id: "U1", name: "One" }]); });
+  };
+  const cache = createSlackUserCache(fetcher, 10_000, () => 1000);
+
+  const p1 = cache.get();
+  const p2 = cache.get();   // fired before the first fetch resolves
+  resolveFetch();
+  const [a, b] = await Promise.all([p1, p2]);
+
+  assert.equal(calls, 1);   // only one underlying fetch
+  assert.deepEqual(a, [{ id: "U1", name: "One" }]);
+  assert.equal(a, b);
+});

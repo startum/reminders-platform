@@ -52,15 +52,23 @@ export function createSlackUserCache(
 ): SlackUserCache {
   let cached: SlackUser[] | null = null;
   let fetchedAt = 0;
+  let inflight: Promise<SlackUser[]> | null = null;
 
   return {
     async get(forceRefresh = false): Promise<SlackUser[]> {
       const stale = cached === null || now() - fetchedAt >= ttlMs;
       if (forceRefresh || stale) {
-        cached = await fetcher();
-        fetchedAt = now();
+        if (!inflight) {
+          inflight = fetcher().then((result) => {
+            cached = result;
+            fetchedAt = now();
+            inflight = null;
+            return result;
+          });
+        }
+        return inflight;
       }
-      return cached;
+      return cached!;
     },
   };
 }
