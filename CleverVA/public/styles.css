@@ -1,0 +1,27 @@
+:root { --bg: #0f1419; --panel: #1a212b; --accent: #2f81f7; --text: #e6edf3; --muted: #8b949e; --fail: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+header { padding: 20px 24px; border-bottom: 1px solid #30363d; }
+h1 { margin: 0; font-size: 20px; }
+.tabs { display: flex; gap: 4px; padding: 12px 24px 0; }
+.tab { background: none; border: none; color: var(--muted); padding: 10px 16px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.panel { display: none; padding: 24px; max-width: 640px; }
+.panel.active { display: block; }
+form { display: flex; flex-direction: column; gap: 14px; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--muted); }
+input, textarea { background: var(--panel); border: 1px solid #30363d; border-radius: 6px; color: var(--text); padding: 10px; font: inherit; }
+button[type="submit"] { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 10px 16px; cursor: pointer; font-size: 14px; align-self: flex-start; }
+.msg { min-height: 18px; font-size: 13px; }
+.msg.ok { color: #3fb950; } .msg.err { color: var(--fail); }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--panel); border: 1px solid #30363d; border-radius: 8px; padding: 14px; }
+.card .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.card .client { font-weight: 600; }
+.card .when { color: var(--muted); font-size: 13px; }
+.card .message { margin: 8px 0 0; white-space: pre-wrap; }
+.card .target { color: var(--muted); font-size: 12px; }
+.card.failed { border-color: var(--fail); }
+.card .error { color: var(--fail); font-size: 13px; margin-top: 6px; }
+.cancel { background: none; border: 1px solid #30363d; color: var(--muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.empty { color: var(--muted); }

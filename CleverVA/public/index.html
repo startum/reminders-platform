@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clever VA Reminders</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header><h1>Clever VA Reminders</h1></header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="add">Add Reminder</button>
+      <button class="tab" data-tab="upcoming">Upcoming</button>
+      <button class="tab" data-tab="sent">Sent</button>
+    </nav>
+
+    <section id="add" class="panel active">
+      <form id="reminder-form">
+        <label>Client name <input name="client_name" required /></label>
+        <label>Slack target (member ID) <input name="slack_target" placeholder="U0123456789" required /></label>
+        <label>Message <textarea name="message" rows="4" required></textarea></label>
+        <label>Date &amp; time <input name="send_at" type="datetime-local" required /></label>
+        <button type="submit">Schedule reminder</button>
+        <p id="form-msg" class="msg"></p>
+      </form>
+    </section>
+
+    <section id="upcoming" class="panel">
+      <ul id="upcoming-list" class="list"></ul>
+      <p id="upcoming-empty" class="empty">No upcoming reminders.</p>
+    </section>
+
+    <section id="sent" class="panel">
+      <ul id="sent-list" class="list"></ul>
+      <p id="sent-empty" class="empty">Nothing sent yet.</p>
+    </section>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
