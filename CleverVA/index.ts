@@ -6,7 +6,7 @@ import { startScheduler } from "./scheduler.ts";
 import { zapierSlackSender } from "./slack.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 4321);
 
 const db = openDb(path.join(here, "reminders.db"));
 const app = createServer(db);
