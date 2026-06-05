@@ -12,7 +12,12 @@ export function createServer(db: Store) {
 
   app.post("/api/reminders", (req, res) => {
     const { client_name, slack_target, message, send_at } = req.body ?? {};
-    if (!client_name || !slack_target || !message || !send_at) {
+    if (
+      typeof client_name !== "string" || client_name.trim().length === 0 ||
+      typeof slack_target !== "string" || slack_target.trim().length === 0 ||
+      typeof message !== "string" || message.trim().length === 0 ||
+      !send_at
+    ) {
       res.status(400).json({ error: "client_name, slack_target, message and send_at are all required" });
       return;
     }
@@ -22,7 +27,12 @@ export function createServer(db: Store) {
       return;
     }
     const reminder = db.create(
-      { client_name, slack_target, message, send_at: new Date(parsed).toISOString() },
+      {
+        client_name: client_name.trim(),
+        slack_target: slack_target.trim(),
+        message: message.trim(),
+        send_at: new Date(parsed).toISOString(),
+      },
       new Date().toISOString(),
     );
     res.status(201).json(reminder);
@@ -37,7 +47,12 @@ export function createServer(db: Store) {
   });
 
   app.delete("/api/reminders/:id", (req, res) => {
-    const ok = db.cancel(Number(req.params.id));
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    const ok = db.cancel(id);
     res.status(ok ? 204 : 404).end();
   });
 

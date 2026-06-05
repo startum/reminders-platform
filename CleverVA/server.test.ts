@@ -12,7 +12,8 @@ async function withServer(fn: (base: string) => Promise<void>) {
   try {
     await fn(`http://127.0.0.1:${port}`);
   } finally {
-    server.close();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
     db.close();
   }
 }
@@ -45,6 +46,17 @@ test("POST with a missing field returns 400", async () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...valid, message: "" }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test("POST with a whitespace-only client_name returns 400", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/api/reminders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...valid, client_name: "   " }),
     });
     assert.equal(res.status, 400);
   });
