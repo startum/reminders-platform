@@ -31,12 +31,16 @@ export function openDb(path: string) {
       slack_target TEXT NOT NULL,
       message TEXT NOT NULL,
       send_at TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
       created_at TEXT NOT NULL,
       sent_at TEXT,
       error TEXT
     );
   `);
+
+  function get(id: number): Reminder | undefined {
+    return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
+  }
 
   return {
     create(r: NewReminder, now: string): Reminder {
@@ -46,12 +50,10 @@ export function openDb(path: string) {
            VALUES (?, ?, ?, ?, 'pending', ?)`,
         )
         .run(r.client_name, r.slack_target, r.message, r.send_at, now);
-      return this.get(Number(info.lastInsertRowid))!;
+      return get(Number(info.lastInsertRowid))!;
     },
 
-    get(id: number): Reminder | undefined {
-      return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
-    },
+    get,
 
     listPending(): Reminder[] {
       return db

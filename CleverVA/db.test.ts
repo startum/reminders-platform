@@ -54,6 +54,7 @@ test("markFailed records the error and shows in sent log", () => {
   const sent = db.listSent();
   assert.equal(sent[0].status, "failed");
   assert.equal(sent[0].error, "boom");
+  assert.equal(db.listPending().length, 1);
   db.close();
 });
 
