@@ -25,3 +25,5 @@ button[type="submit"] { background: var(--accent); color: #fff; border: none; bo
 .card .error { color: var(--fail); font-size: 13px; margin-top: 6px; }
 .cancel { background: none; border: 1px solid #30363d; color: var(--muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .empty { color: var(--muted); }
+select { background: var(--panel); border: 1px solid #30363d; border-radius: 6px; color: var(--text); padding: 10px; font: inherit; }
+.linkish { background: none; border: none; color: var(--accent); font-size: 13px; padding: 0; cursor: pointer; align-self: flex-start; }

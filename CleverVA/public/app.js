@@ -18,6 +18,28 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+const slackTarget = document.getElementById("slack-target");
+
+async function loadPeople(force = false) {
+  slackTarget.innerHTML = `<option value="">Loading people…</option>`;
+  try {
+    const res = await fetch(`/api/slack-users${force ? "?refresh=1" : ""}`);
+    if (!res.ok) throw new Error("request failed");
+    const people = await res.json();
+    if (!people.length) {
+      slackTarget.innerHTML = `<option value="">No people found — try Refresh</option>`;
+      return;
+    }
+    slackTarget.innerHTML =
+      `<option value="" disabled selected>Select a person…</option>` +
+      people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+  } catch {
+    slackTarget.innerHTML = `<option value="">Couldn't load people — try Refresh</option>`;
+  }
+}
+
+document.getElementById("refresh-people").addEventListener("click", () => loadPeople(true));
+
 const form = document.getElementById("reminder-form");
 const formMsg = document.getElementById("form-msg");
 
@@ -90,3 +112,4 @@ async function loadSent() {
 }
 
 show("add");
+loadPeople();

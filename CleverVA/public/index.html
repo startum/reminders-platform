@@ -18,7 +18,12 @@
     <section id="add" class="panel active">
       <form id="reminder-form">
         <label>Client name <input name="client_name" required /></label>
-        <label>Slack target (member ID) <input name="slack_target" placeholder="U0123456789" required /></label>
+        <label>Slack person
+          <select name="slack_target" id="slack-target" required>
+            <option value="">Loading people…</option>
+          </select>
+        </label>
+        <button type="button" id="refresh-people" class="linkish">↻ Refresh people</button>
         <label>Message <textarea name="message" rows="4" required></textarea></label>
         <label>Date &amp; time <input name="send_at" type="datetime-local" required /></label>
         <button type="submit">Schedule reminder</button>
