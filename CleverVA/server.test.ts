@@ -4,13 +4,27 @@ import type { AddressInfo } from "node:net";
 import { openDb } from "./db.ts";
 import { createServer } from "./server.ts";
 
-async function withServer(fn: (base: string) => Promise<void>) {
+function makeFakeCache(people = [{ id: "U1", name: "One" }]) {
+  const calls: boolean[] = [];
+  return {
+    calls,
+    get: async (force = false) => {
+      calls.push(force);
+      return people;
+    },
+  };
+}
+
+async function withServer(
+  fn: (base: string, cache: ReturnType<typeof makeFakeCache>) => Promise<void>,
+) {
   const db = openDb(":memory:");
-  const server = createServer(db).listen(0);
+  const cache = makeFakeCache();
+  const server = createServer(db, cache).listen(0);
   await new Promise((r) => server.once("listening", r));
   const { port } = server.address() as AddressInfo;
   try {
-    await fn(`http://127.0.0.1:${port}`);
+    await fn(`http://127.0.0.1:${port}`, cache);
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
@@ -95,5 +109,20 @@ test("DELETE of a missing id returns 404", async () => {
   await withServer(async (base) => {
     const del = await fetch(`${base}/api/reminders/999999`, { method: "DELETE" });
     assert.equal(del.status, 404);
+  });
+});
+
+test("GET /api/slack-users returns the cached people list", async () => {
+  await withServer(async (base) => {
+    const people = await (await fetch(`${base}/api/slack-users`)).json();
+    assert.deepEqual(people, [{ id: "U1", name: "One" }]);
+  });
+});
+
+test("GET /api/slack-users?refresh=1 forces a refresh", async () => {
+  await withServer(async (base, cache) => {
+    await fetch(`${base}/api/slack-users`);
+    await fetch(`${base}/api/slack-users?refresh=1`);
+    assert.deepEqual(cache.calls, [false, true]);
   });
 });

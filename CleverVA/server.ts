@@ -2,10 +2,11 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Store } from "./db.ts";
+import type { SlackUserCache } from "./slack-users.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export function createServer(db: Store) {
+export function createServer(db: Store, slackUsers: SlackUserCache) {
   const app = express();
   app.use(express.json());
   app.use(express.static(path.join(here, "public")));
@@ -44,6 +45,16 @@ export function createServer(db: Store) {
       return;
     }
     res.json(db.listPending());
+  });
+
+  app.get("/api/slack-users", async (req, res) => {
+    try {
+      const people = await slackUsers.get(req.query.refresh === "1");
+      res.json(people);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: `Could not load Slack people: ${message}` });
+    }
   });
 
   app.delete("/api/reminders/:id", (req, res) => {
