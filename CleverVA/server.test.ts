@@ -126,3 +126,43 @@ test("GET /api/slack-users?refresh=1 forces a refresh", async () => {
     assert.deepEqual(cache.calls, [false, true]);
   });
 });
+
+test("POST a gmail reminder with a valid email persists channel+email", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/api/reminders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...valid, channel: "gmail", email: "client@example.com", slack_target: undefined }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.channel, "gmail");
+    assert.equal(body.email, "client@example.com");
+
+    const pending = await (await fetch(`${base}/api/reminders?status=pending`)).json();
+    assert.equal(pending[0].channel, "gmail");
+    assert.equal(pending[0].email, "client@example.com");
+  });
+});
+
+test("POST a gmail reminder with an invalid email returns 400", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/api/reminders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...valid, channel: "gmail", email: "not-an-email" }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test("POST with an unknown channel returns 400", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/api/reminders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...valid, channel: "carrier-pigeon" }),
+    });
+    assert.equal(res.status, 400);
+  });
+});

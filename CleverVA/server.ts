@@ -12,14 +12,19 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
   app.use(express.static(path.join(here, "public")));
 
   app.post("/api/reminders", (req, res) => {
-    const { client_name, slack_target, message, send_at } = req.body ?? {};
+    const { client_name, slack_target, message, send_at, channel: rawChannel, email } = req.body ?? {};
+    const channel = rawChannel ?? "slack";
+
     if (
       typeof client_name !== "string" || client_name.trim().length === 0 ||
-      typeof slack_target !== "string" || slack_target.trim().length === 0 ||
       typeof message !== "string" || message.trim().length === 0 ||
       !send_at
     ) {
-      res.status(400).json({ error: "client_name, slack_target, message and send_at are all required" });
+      res.status(400).json({ error: "client_name, message and send_at are all required" });
+      return;
+    }
+    if (channel !== "slack" && channel !== "gmail") {
+      res.status(400).json({ error: "channel must be 'slack' or 'gmail'" });
       return;
     }
     const parsed = Date.parse(send_at);
@@ -27,12 +32,32 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       res.status(400).json({ error: "send_at is not a valid date/time" });
       return;
     }
+
+    let target = "";
+    let emailVal: string | null = null;
+    if (channel === "slack") {
+      if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
+        res.status(400).json({ error: "slack_target is required for a Slack reminder" });
+        return;
+      }
+      target = slack_target.trim();
+    } else {
+      const e = typeof email === "string" ? email.trim() : "";
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+        res.status(400).json({ error: "a valid email is required for an email reminder" });
+        return;
+      }
+      emailVal = e;
+    }
+
     const reminder = db.create(
       {
         client_name: client_name.trim(),
-        slack_target: slack_target.trim(),
+        slack_target: target,
         message: message.trim(),
         send_at: new Date(parsed).toISOString(),
+        channel,
+        email: emailVal,
       },
       new Date().toISOString(),
     );
