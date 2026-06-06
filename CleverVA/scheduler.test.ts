@@ -14,23 +14,24 @@ function seed() {
 
 test("processDue sends only due reminders and marks them sent", async () => {
   const db = seed();
-  const calls: Array<[string, string]> = [];
-  const sender = async (target: string, text: string) => { calls.push([target, text]); };
+  const calls = [];
+  const send = async (r) => { calls.push(r); };
 
-  const result = await processDue(db, sender, NOW);
+  const result = await processDue(db, send, NOW);
 
   assert.deepEqual(result, { sent: 1, failed: 0 });
-  assert.deepEqual(calls, [["U1", "go"]]);
-  assert.equal(db.listPending().length, 1);     // Future still pending
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].client_name, "Due");
+  assert.equal(db.listPending().length, 1);
   assert.equal(db.listSent()[0].client_name, "Due");
   db.close();
 });
 
 test("processDue marks a reminder failed when the sender throws", async () => {
   const db = seed();
-  const sender = async () => { throw new Error("slack down"); };
+  const send = async () => { throw new Error("slack down"); };
 
-  const result = await processDue(db, sender, NOW);
+  const result = await processDue(db, send, NOW);
 
   assert.deepEqual(result, { sent: 0, failed: 1 });
   const failed = db.listSent()[0];

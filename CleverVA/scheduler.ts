@@ -1,5 +1,5 @@
 import type { Store } from "./db.ts";
-import type { SlackSender } from "./slack.ts";
+import type { ReminderSend } from "./dispatch.ts";
 
 export interface ProcessResult {
   sent: number;
@@ -7,13 +7,13 @@ export interface ProcessResult {
 }
 
 /** Sends every pending reminder due at or before `now`. Each is processed independently. */
-export async function processDue(db: Store, sender: SlackSender, now: string): Promise<ProcessResult> {
+export async function processDue(db: Store, send: ReminderSend, now: string): Promise<ProcessResult> {
   const due = db.listDue(now);
   let sent = 0;
   let failed = 0;
   for (const r of due) {
     try {
-      await sender(r.slack_target, r.message);
+      await send(r);
       db.markSent(r.id, now);
       sent++;
     } catch (err) {
@@ -26,9 +26,9 @@ export async function processDue(db: Store, sender: SlackSender, now: string): P
 }
 
 /** Starts a repeating loop that processes due reminders. Returns the interval handle. */
-export function startScheduler(db: Store, sender: SlackSender, intervalMs = 30_000): NodeJS.Timeout {
+export function startScheduler(db: Store, send: ReminderSend, intervalMs = 30_000): NodeJS.Timeout {
   const tick = () => {
-    processDue(db, sender, new Date().toISOString()).catch((err) => console.error("scheduler tick failed:", err));
+    processDue(db, send, new Date().toISOString()).catch((err) => console.error("scheduler tick failed:", err));
   };
   tick();
   return setInterval(tick, intervalMs);
