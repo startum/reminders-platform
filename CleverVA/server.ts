@@ -1,7 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Store } from "./db.ts";
+import type { Store, UpdateReminder } from "./db.ts";
 import type { SlackUserCache } from "./slack-users.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -70,6 +70,79 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       return;
     }
     res.json(db.listPending());
+  });
+
+  app.patch("/api/reminders/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+
+    const { client_name, slack_target, message, send_at, channel, email } = req.body ?? {};
+    const fields: UpdateReminder = {};
+
+    if (client_name !== undefined) {
+      if (typeof client_name !== "string" || client_name.trim().length === 0) {
+        res.status(400).json({ error: "client_name must be a non-empty string" });
+        return;
+      }
+      fields.client_name = client_name.trim();
+    }
+
+    if (message !== undefined) {
+      if (typeof message !== "string" || message.trim().length === 0) {
+        res.status(400).json({ error: "message must be a non-empty string" });
+        return;
+      }
+      fields.message = message.trim();
+    }
+
+    if (send_at !== undefined) {
+      const parsed = Date.parse(send_at);
+      if (Number.isNaN(parsed)) {
+        res.status(400).json({ error: "send_at is not a valid date/time" });
+        return;
+      }
+      fields.send_at = new Date(parsed).toISOString();
+    }
+
+    if (channel !== undefined) {
+      if (channel !== "slack" && channel !== "gmail") {
+        res.status(400).json({ error: "channel must be 'slack' or 'gmail'" });
+        return;
+      }
+      fields.channel = channel;
+    }
+
+    const effectiveChannel = (fields.channel ?? db.get(id)?.channel) as string | undefined;
+
+    if (effectiveChannel === "slack") {
+      if (slack_target !== undefined) {
+        if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
+          res.status(400).json({ error: "slack_target must be a non-empty string" });
+          return;
+        }
+        fields.slack_target = slack_target.trim();
+      }
+    } else if (effectiveChannel === "gmail") {
+      if (email !== undefined) {
+        const e = typeof email === "string" ? email.trim() : "";
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+          res.status(400).json({ error: "a valid email is required for an email reminder" });
+          return;
+        }
+        fields.email = e;
+        fields.slack_target = "";
+      }
+    }
+
+    const updated = db.update(id, fields);
+    if (!updated) {
+      res.status(404).json({ error: "reminder not found or already sent" });
+      return;
+    }
+    res.json(updated);
   });
 
   app.get("/api/slack-users", async (req, res) => {
