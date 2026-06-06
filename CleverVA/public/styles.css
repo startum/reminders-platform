@@ -432,7 +432,7 @@ input[type="radio"] {
 
 /* ── Preview card ── */
 .preview-card {
-  background: #EDE7E3;
+  background: #ffffff;
   position: sticky;
   top: 24px;
 }
