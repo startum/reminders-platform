@@ -5,7 +5,6 @@ import { createServer } from "./server.ts";
 import { startScheduler } from "./scheduler.ts";
 import { zapierSlackSender } from "./slack.ts";
 import { zapierGmailSender } from "./gmail.ts";
-import { zapierSmsSender } from "./sms.ts";
 import { createReminderSender } from "./dispatch.ts";
 import { createSlackUserCache, fetchSlackUsers } from "./slack-users.ts";
 
@@ -14,7 +13,7 @@ const PORT = Number(process.env.PORT ?? 4321);
 
 const db = openDb(path.join(here, "reminders.db"));
 const slackUsers = createSlackUserCache(fetchSlackUsers);
-const send = createReminderSender({ slack: zapierSlackSender, gmail: zapierGmailSender, sms: zapierSmsSender });
+const send = createReminderSender({ slack: zapierSlackSender, gmail: zapierGmailSender });
 const app = createServer(db, slackUsers);
 startScheduler(db, send);
 
