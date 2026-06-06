@@ -8,9 +8,11 @@ export interface Reminder {
   slack_target: string;
   message: string;
   send_at: string;
+  channel: "slack" | "gmail";
   status: ReminderStatus;
   created_at: string;
   sent_at: string | null;
+  email: string | null;
   error: string | null;
 }
 
@@ -19,6 +21,8 @@ export interface NewReminder {
   slack_target: string;
   message: string;
   send_at: string;
+  channel?: "slack" | "gmail";
+  email?: string | null;
 }
 
 export function openDb(path: string) {
@@ -31,12 +35,22 @@ export function openDb(path: string) {
       slack_target TEXT NOT NULL,
       message TEXT NOT NULL,
       send_at TEXT NOT NULL,
+      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail')),
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
+      email TEXT,
       created_at TEXT NOT NULL,
       sent_at TEXT,
       error TEXT
     );
   `);
+
+  const cols = (db.prepare("PRAGMA table_info(reminders)").all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes("channel")) {
+    db.exec("ALTER TABLE reminders ADD COLUMN channel TEXT NOT NULL DEFAULT 'slack'");
+  }
+  if (!cols.includes("email")) {
+    db.exec("ALTER TABLE reminders ADD COLUMN email TEXT");
+  }
 
   function get(id: number): Reminder | undefined {
     return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
@@ -46,10 +60,10 @@ export function openDb(path: string) {
     create(r: NewReminder, now: string): Reminder {
       const info = db
         .prepare(
-          `INSERT INTO reminders (client_name, slack_target, message, send_at, status, created_at)
-           VALUES (?, ?, ?, ?, 'pending', ?)`,
+          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
         )
-        .run(r.client_name, r.slack_target, r.message, r.send_at, now);
+        .run(r.client_name, r.slack_target, r.message, r.send_at, r.channel ?? "slack", r.email ?? null, now);
       return get(Number(info.lastInsertRowid))!;
     },
 
