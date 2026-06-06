@@ -221,7 +221,6 @@ const channelInput = document.getElementById("channel-input");
 
 function fmtTarget(r) {
   if (r.channel === "gmail") return `via email · ${esc(r.email || "")}`;
-  if (r.channel === "sms")   return `via SMS · ${esc(r.phone || "")}`;
   return `via Slack · ${esc(r.slack_target)}`;
 }
 
@@ -233,7 +232,6 @@ document.querySelectorAll(".channel-btn").forEach((btn) => {
     channelInput.value = ch;
     document.getElementById("field-slack").style.display = ch === "slack" ? "" : "none";
     document.getElementById("field-gmail").style.display = ch === "gmail" ? "" : "none";
-    document.getElementById("field-sms").style.display   = ch === "sms"   ? "" : "none";
     lucide.createIcons();
     updatePreview();
   });
@@ -274,8 +272,6 @@ function updatePreview() {
   let recipientVal = "";
   if (ch === "gmail") {
     recipientVal = (document.getElementById("email-input") || {}).value || "";
-  } else if (ch === "sms") {
-    recipientVal = (document.getElementById("phone-input") || {}).value || "";
   } else {
     const slackOpt = slackTarget.options[slackTarget.selectedIndex];
     recipientVal = (slackOpt && slackOpt.value) ? `@${slackOpt.text}` : "";
@@ -312,7 +308,6 @@ function updatePreview() {
 document.getElementById("client_name").addEventListener("input", updatePreview);
 document.getElementById("message").addEventListener("input", updatePreview);
 document.getElementById("email-input").addEventListener("input", updatePreview);
-document.getElementById("phone-input").addEventListener("input", updatePreview);
 customDateInput.addEventListener("change", updatePreview);
 slackTarget.addEventListener("change", updatePreview);
 document.querySelectorAll("input[name='category']").forEach((r) =>
