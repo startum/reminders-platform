@@ -1,5 +1,5 @@
 :root {
-  --bg: #F5EFEC;
+  --bg: #FEF6F9;
   --card: #FFFFFF;
   --primary: #0D3AB8;
   --primary-hover: #0A2D94;
@@ -53,6 +53,13 @@ h1 {
 
 h1, h2, .card-title {
   font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.site-logo {
+  height: 48px;
+  width: auto;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .subtitle {
