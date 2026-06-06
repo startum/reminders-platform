@@ -18,6 +18,52 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function toLocalDatetimeValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function buildSlackOptions(currentTarget) {
+  const cached = window.__slackPeople || [];
+  if (!cached.length) return `<option value="${esc(currentTarget)}">${esc(currentTarget)}</option>`;
+  return cached.map((p) =>
+    `<option value="${esc(p.id)}"${p.id === currentTarget ? " selected" : ""}>${esc(p.name)}</option>`
+  ).join("");
+}
+
+function buildEditForm(r, slackPeopleOptions) {
+  const isGmail = r.channel === "gmail";
+  return `
+    <form class="card-edit-form" data-id="${r.id}">
+      <input name="client_name" value="${esc(r.client_name)}" placeholder="Client name" required />
+      <div class="card-edit-channels">
+        <button type="button" class="channel-btn${!isGmail ? " active" : ""}" data-ch="slack">
+          <i data-lucide="message-circle"></i> Slack
+        </button>
+        <button type="button" class="channel-btn${isGmail ? " active" : ""}" data-ch="gmail">
+          <i data-lucide="mail"></i> Email
+        </button>
+        <input type="hidden" name="channel" value="${r.channel}" />
+      </div>
+      <div class="edit-field-slack"${isGmail ? ' style="display:none"' : ""}>
+        <select name="slack_target">
+          ${slackPeopleOptions}
+        </select>
+      </div>
+      <div class="edit-field-gmail"${!isGmail ? ' style="display:none"' : ""}>
+        <input name="email" type="email" value="${esc(r.email || "")}" placeholder="client@example.com" />
+      </div>
+      <textarea name="message" required>${esc(r.message)}</textarea>
+      <input name="send_at" type="datetime-local" value="${toLocalDatetimeValue(r.send_at)}" required />
+      <div class="card-edit-form-actions">
+        <button type="submit" class="save-btn">Save</button>
+        <button type="button" class="discard-btn">Discard</button>
+      </div>
+      <p class="card-edit-error"></p>
+    </form>`;
+}
+
 const slackTarget = document.getElementById("slack-target");
 
 async function loadPeople(force = false) {
@@ -26,6 +72,7 @@ async function loadPeople(force = false) {
     const res = await fetch(`/api/slack-users${force ? "?refresh=1" : ""}`);
     if (!res.ok) throw new Error("request failed");
     const people = await res.json();
+    window.__slackPeople = people;
     if (!people.length) {
       slackTarget.innerHTML = `<option value="">No people found — try Refresh</option>`;
       return;
@@ -168,14 +215,19 @@ function renderUpcoming() {
   list.innerHTML = filtered
     .map(
       (r) => `
-      <li class="card">
-        <div class="row">
-          <span class="client">${esc(r.client_name)}</span>
-          <span class="when">${fmt(r.send_at)}</span>
+      <li class="card" data-id="${r.id}">
+        <div class="card-read">
+          <div class="row">
+            <span class="client">${esc(r.client_name)}</span>
+            <span class="when">${fmt(r.send_at)}</span>
+          </div>
+          <div class="target">${fmtTarget(r)}</div>
+          <p class="message">${esc(r.message)}</p>
+          <div class="card-actions">
+            <button class="edit-btn" data-id="${r.id}">Edit</button>
+            <button class="cancel" data-id="${r.id}">Cancel</button>
+          </div>
         </div>
-        <div class="target">${fmtTarget(r)}</div>
-        <p class="message">${esc(r.message)}</p>
-        <button class="cancel" data-id="${r.id}">Cancel</button>
       </li>`,
     )
     .join("");
@@ -185,6 +237,75 @@ function renderUpcoming() {
       loadUpcoming();
     }),
   );
+  list.querySelectorAll(".edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      list.querySelectorAll(".card[data-editing]").forEach((other) => {
+        if (other !== btn.closest(".card")) collapseEditForm(other);
+      });
+      const card = btn.closest(".card");
+      if (card.dataset.editing) return;
+      expandEditForm(card);
+    });
+  });
+  lucide.createIcons();
+}
+
+function expandEditForm(card) {
+  const id = Number(card.dataset.id);
+  const r = upcomingItems.find((x) => x.id === id);
+  if (!r) return;
+  card.dataset.editing = "1";
+  const readDiv = card.querySelector(".card-read");
+  readDiv.style.display = "none";
+  const formHtml = buildEditForm(r, buildSlackOptions(r.slack_target));
+  card.insertAdjacentHTML("beforeend", formHtml);
+  lucide.createIcons();
+
+  const form = card.querySelector(".card-edit-form");
+
+  form.querySelectorAll(".channel-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      form.querySelectorAll(".channel-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const ch = btn.dataset.ch;
+      form.querySelector("input[name='channel']").value = ch;
+      form.querySelector(".edit-field-slack").style.display = ch === "slack" ? "" : "none";
+      form.querySelector(".edit-field-gmail").style.display = ch === "gmail" ? "" : "none";
+    });
+  });
+
+  form.querySelector(".discard-btn").addEventListener("click", () => collapseEditForm(card));
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    const errEl = form.querySelector(".card-edit-error");
+    errEl.classList.remove("visible");
+    const res = await fetch(`/api/reminders/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      const idx = upcomingItems.findIndex((x) => x.id === id);
+      if (idx !== -1) upcomingItems[idx] = updated;
+      collapseEditForm(card);
+      renderUpcoming();
+    } else {
+      const body = await res.json().catch(() => ({}));
+      errEl.textContent = body.error || "Could not save changes.";
+      errEl.classList.add("visible");
+    }
+  });
+}
+
+function collapseEditForm(card) {
+  delete card.dataset.editing;
+  const form = card.querySelector(".card-edit-form");
+  if (form) form.remove();
+  const readDiv = card.querySelector(".card-read");
+  if (readDiv) readDiv.style.display = "";
 }
 
 document.getElementById("upcoming-search").addEventListener("input", renderUpcoming);
