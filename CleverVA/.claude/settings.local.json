@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /Users/deborahbutler/Documents/Zapier -maxdepth 3 -name \"package.json\" -o -name \"package-lock.json\" -o -name \"pnpm-lock.yaml\" | head -10)"
+      "Bash(find /Users/deborahbutler/Documents/Zapier -maxdepth 3 -name \"package.json\" -o -name \"package-lock.json\" -o -name \"pnpm-lock.yaml\" | head -10)",
+      "Bash(npx tsc *)",
+      "Bash(pkill -f \"tsx.*index.ts\")",
+      "Bash(curl -s -X PATCH http://localhost:4321/api/reminders/1 -H 'content-type: application/json' -d '{\"send_at\":\"not-a-date\"}')",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -X PATCH http://localhost:4321/api/reminders/999 -H 'content-type: application/json' -d '{\"send_at\":\"not-a-date\"}')"
     ]
   }
 }
