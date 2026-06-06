@@ -27,6 +27,15 @@ export interface NewReminder {
   phone?: string | null;
 }
 
+export interface UpdateReminder {
+  client_name?: string;
+  slack_target?: string;
+  message?: string;
+  send_at?: string;
+  channel?: "slack" | "gmail";
+  email?: string | null;
+}
+
 export function openDb(path: string) {
   const db = new Database(path);
   db.pragma("journal_mode = WAL");
@@ -104,6 +113,21 @@ export function openDb(path: string) {
     cancel(id: number): boolean {
       const info = db.prepare(`DELETE FROM reminders WHERE id = ? AND status = 'pending'`).run(id);
       return info.changes > 0;
+    },
+
+    update(id: number, fields: UpdateReminder): Reminder | undefined {
+      const allowed: (keyof UpdateReminder)[] = [
+        "client_name", "slack_target", "message", "send_at", "channel", "email",
+      ];
+      const entries = (Object.keys(fields) as (keyof UpdateReminder)[])
+        .filter((k) => allowed.includes(k) && fields[k] !== undefined);
+      if (!entries.length) return get(id);
+      const setClauses = entries.map((k) => `${k} = ?`).join(", ");
+      const values = entries.map((k) => fields[k] ?? null);
+      const info = db
+        .prepare(`UPDATE reminders SET ${setClauses} WHERE id = ? AND status = 'pending'`)
+        .run(...values, id);
+      return info.changes > 0 ? get(id) : undefined;
     },
 
     close(): void {
