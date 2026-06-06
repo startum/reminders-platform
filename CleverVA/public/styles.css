@@ -181,7 +181,7 @@ label {
 input,
 textarea,
 select {
-  background: var(--bg);
+  background: #fafafa;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-input);
   color: var(--text);
