@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clever-va",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "index.ts"],
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}

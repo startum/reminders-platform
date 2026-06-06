@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/deborahbutler/Documents/Zapier -maxdepth 3 -name \"package.json\" -o -name \"package-lock.json\" -o -name \"pnpm-lock.yaml\" | head -10)"
+    ]
+  }
+}

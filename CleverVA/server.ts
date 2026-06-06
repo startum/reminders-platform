@@ -12,7 +12,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
   app.use(express.static(path.join(here, "public")));
 
   app.post("/api/reminders", (req, res) => {
-    const { client_name, slack_target, message, send_at, channel: rawChannel, email } = req.body ?? {};
+    const { client_name, slack_target, message, send_at, channel: rawChannel, email, phone } = req.body ?? {};
     const channel = rawChannel ?? "slack";
 
     if (
@@ -23,8 +23,8 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       res.status(400).json({ error: "client_name, message and send_at are all required" });
       return;
     }
-    if (channel !== "slack" && channel !== "gmail") {
-      res.status(400).json({ error: "channel must be 'slack' or 'gmail'" });
+    if (channel !== "slack" && channel !== "gmail" && channel !== "sms") {
+      res.status(400).json({ error: "channel must be 'slack', 'gmail', or 'sms'" });
       return;
     }
     const parsed = Date.parse(send_at);
@@ -35,19 +35,27 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
 
     let target = "";
     let emailVal: string | null = null;
+    let phoneVal: string | null = null;
     if (channel === "slack") {
       if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
         res.status(400).json({ error: "slack_target is required for a Slack reminder" });
         return;
       }
       target = slack_target.trim();
-    } else {
+    } else if (channel === "gmail") {
       const e = typeof email === "string" ? email.trim() : "";
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
         res.status(400).json({ error: "a valid email is required for an email reminder" });
         return;
       }
       emailVal = e;
+    } else {
+      const p = typeof phone === "string" ? phone.trim() : "";
+      if (!p) {
+        res.status(400).json({ error: "phone is required for an SMS reminder" });
+        return;
+      }
+      phoneVal = p;
     }
 
     const reminder = db.create(
@@ -58,6 +66,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
         send_at: new Date(parsed).toISOString(),
         channel,
         email: emailVal,
+        phone: phoneVal,
       },
       new Date().toISOString(),
     );

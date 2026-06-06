@@ -4,43 +4,218 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Clever VA Reminders</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header><h1>Clever VA Reminders</h1></header>
+    <header>
+      <div class="header-inner">
+        <h1>Clever VA Reminders</h1>
+        <p class="subtitle">Schedule supportive reminders for clients</p>
+      </div>
+    </header>
 
-    <nav class="tabs">
-      <button class="tab active" data-tab="add">Add Reminder</button>
-      <button class="tab" data-tab="upcoming">Upcoming</button>
-      <button class="tab" data-tab="sent">Sent</button>
+    <nav class="tabs-wrap">
+      <div class="tabs">
+        <button class="tab active" data-tab="add">Schedule Reminder</button>
+        <button class="tab" data-tab="upcoming">Scheduled</button>
+        <button class="tab" data-tab="sent">Sent</button>
+      </div>
     </nav>
 
-    <section id="add" class="panel active">
-      <form id="reminder-form">
-        <label>Client name <input name="client_name" required /></label>
-        <label>Slack person
-          <select name="slack_target" id="slack-target" required>
-            <option value="">Loading people…</option>
-          </select>
-        </label>
-        <button type="button" id="refresh-people" class="linkish">↻ Refresh people</button>
-        <label>Message <textarea name="message" rows="4" required></textarea></label>
-        <label>Date &amp; time <input name="send_at" type="datetime-local" required /></label>
-        <button type="submit">Schedule reminder</button>
-        <p id="form-msg" class="msg"></p>
-      </form>
-    </section>
+    <main>
+      <section id="add" class="panel active">
+        <div class="two-col">
 
-    <section id="upcoming" class="panel">
-      <ul id="upcoming-list" class="list"></ul>
-      <p id="upcoming-empty" class="empty">No upcoming reminders.</p>
-    </section>
+          <div class="card form-card">
+            <h2 class="card-title">Schedule Reminder</h2>
+            <form id="reminder-form">
+              <div class="field-group">
+                <label for="client_name">
+                  <i data-lucide="user" class="label-icon"></i> Client Name
+                </label>
+                <input id="client_name" name="client_name" required placeholder="e.g. Sarah Johnson" />
+              </div>
 
-    <section id="sent" class="panel">
-      <ul id="sent-list" class="list"></ul>
-      <p id="sent-empty" class="empty">Nothing sent yet.</p>
-    </section>
+              <div class="field-group">
+                <label>
+                  <i data-lucide="send" class="label-icon"></i> Send via
+                </label>
+                <div class="channel-selector">
+                  <button type="button" class="channel-btn active" data-channel="slack">
+                    <i data-lucide="message-circle"></i> Slack
+                  </button>
+                  <button type="button" class="channel-btn" data-channel="gmail">
+                    <i data-lucide="mail"></i> Email
+                  </button>
+                  <button type="button" class="channel-btn" data-channel="sms">
+                    <i data-lucide="smartphone"></i> SMS
+                  </button>
+                </div>
+                <input type="hidden" name="channel" id="channel-input" value="slack" />
+              </div>
 
+              <div class="field-group" id="field-slack">
+                <label for="slack-target">
+                  <i data-lucide="user" class="label-icon"></i> Slack Person
+                </label>
+                <select name="slack_target" id="slack-target">
+                  <option value="">Loading people…</option>
+                </select>
+                <button type="button" id="refresh-people" class="linkish">↻ Refresh list</button>
+              </div>
+
+              <div class="field-group" id="field-gmail" style="display:none">
+                <label for="email-input">
+                  <i data-lucide="mail" class="label-icon"></i> Email Address
+                </label>
+                <input id="email-input" name="email" type="email" placeholder="client@example.com" />
+              </div>
+
+              <div class="field-group" id="field-sms" style="display:none">
+                <label for="phone-input">
+                  <i data-lucide="smartphone" class="label-icon"></i> Phone Number
+                </label>
+                <input id="phone-input" name="phone" type="tel" placeholder="+44 7700 900000" />
+              </div>
+
+              <div class="field-group">
+                <label>
+                  <i data-lucide="tag" class="label-icon"></i> Category
+                </label>
+                <div class="category-grid">
+                  <label class="category-option">
+                    <input type="radio" name="category" value="medical" />
+                    <i data-lucide="stethoscope"></i>
+                    <span>Medical</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="appointment" />
+                    <i data-lucide="calendar-check"></i>
+                    <span>Appointment</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="meeting" />
+                    <i data-lucide="users"></i>
+                    <span>Meeting</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="daily_living" />
+                    <i data-lucide="home"></i>
+                    <span>Daily Living</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="medication" />
+                    <i data-lucide="pill"></i>
+                    <span>Medication</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="travel" />
+                    <i data-lucide="bus"></i>
+                    <span>Travel</span>
+                  </label>
+                  <label class="category-option">
+                    <input type="radio" name="category" value="custom" />
+                    <i data-lucide="star"></i>
+                    <span>Custom</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label for="message">
+                  <i data-lucide="file-text" class="label-icon"></i> Message
+                </label>
+                <textarea id="message" name="message" rows="5" required placeholder="Type the reminder message here…"></textarea>
+              </div>
+
+              <div class="field-group">
+                <label>
+                  <i data-lucide="clock" class="label-icon"></i> Send
+                </label>
+                <div class="schedule-options" id="schedule-options">
+                  <label class="schedule-option">
+                    <input type="radio" name="schedule_preset" value="1hour" required /> In 1 hour
+                  </label>
+                  <label class="schedule-option">
+                    <input type="radio" name="schedule_preset" value="tomorrow_morning" /> Tomorrow morning
+                  </label>
+                  <label class="schedule-option">
+                    <input type="radio" name="schedule_preset" value="tomorrow_afternoon" /> Tomorrow afternoon
+                  </label>
+                  <label class="schedule-option">
+                    <input type="radio" name="schedule_preset" value="next_monday" /> Next Monday
+                  </label>
+                  <label class="schedule-option">
+                    <input type="radio" name="schedule_preset" value="custom" /> Custom Date
+                  </label>
+                </div>
+                <input id="send_at" name="send_at" type="datetime-local" class="custom-date-input" />
+              </div>
+
+              <button type="submit" class="btn-primary">Schedule Reminder</button>
+              <div id="form-msg" class="msg" role="alert" aria-live="polite"></div>
+            </form>
+          </div>
+
+          <div class="card preview-card">
+            <h2 class="card-title">Reminder Preview</h2>
+            <div class="preview-body">
+              <div class="preview-row">
+                <span class="preview-label">Client</span>
+                <span class="preview-value" id="preview-client">—</span>
+              </div>
+              <div class="preview-row">
+                <span class="preview-label">Category</span>
+                <span class="preview-value" id="preview-category">—</span>
+              </div>
+              <div class="preview-row">
+                <span class="preview-label">Message</span>
+                <span class="preview-value" id="preview-message">—</span>
+              </div>
+              <div class="preview-row">
+                <span class="preview-label">Scheduled</span>
+                <span class="preview-value" id="preview-date">—</span>
+              </div>
+              <div class="preview-row preview-row--last">
+                <span class="preview-label">Recipient</span>
+                <span class="preview-value" id="preview-recipient">—</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="upcoming" class="panel">
+        <div class="list-container">
+          <div class="list-controls">
+            <div class="search-wrap">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="upcoming-search" class="search-input" placeholder="Search by client or message…" autocomplete="off" />
+            </div>
+            <div class="filter-chips">
+              <button class="filter-chip active" data-filter="all">All</button>
+              <button class="filter-chip" data-filter="today">Today</button>
+              <button class="filter-chip" data-filter="week">This week</button>
+            </div>
+          </div>
+          <ul id="upcoming-list" class="list"></ul>
+          <p id="upcoming-empty" class="empty">No upcoming reminders.</p>
+        </div>
+      </section>
+
+      <section id="sent" class="panel">
+        <div class="list-container">
+          <ul id="sent-list" class="list"></ul>
+          <p id="sent-empty" class="empty">Nothing sent yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

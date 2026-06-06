@@ -8,11 +8,12 @@ export interface Reminder {
   slack_target: string;
   message: string;
   send_at: string;
-  channel: "slack" | "gmail";
+  channel: "slack" | "gmail" | "sms";
   status: ReminderStatus;
   created_at: string;
   sent_at: string | null;
   email: string | null;
+  phone: string | null;
   error: string | null;
 }
 
@@ -21,8 +22,9 @@ export interface NewReminder {
   slack_target: string;
   message: string;
   send_at: string;
-  channel?: "slack" | "gmail";
+  channel?: "slack" | "gmail" | "sms";
   email?: string | null;
+  phone?: string | null;
 }
 
 export function openDb(path: string) {
@@ -35,9 +37,10 @@ export function openDb(path: string) {
       slack_target TEXT NOT NULL,
       message TEXT NOT NULL,
       send_at TEXT NOT NULL,
-      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail')),
+      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail','sms')),
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
       email TEXT,
+      phone TEXT,
       created_at TEXT NOT NULL,
       sent_at TEXT,
       error TEXT
@@ -51,6 +54,9 @@ export function openDb(path: string) {
   if (!cols.includes("email")) {
     db.exec("ALTER TABLE reminders ADD COLUMN email TEXT");
   }
+  if (!cols.includes("phone")) {
+    db.exec("ALTER TABLE reminders ADD COLUMN phone TEXT");
+  }
 
   function get(id: number): Reminder | undefined {
     return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
@@ -60,10 +66,10 @@ export function openDb(path: string) {
     create(r: NewReminder, now: string): Reminder {
       const info = db
         .prepare(
-          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, phone, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
         )
-        .run(r.client_name, r.slack_target, r.message, r.send_at, r.channel ?? "slack", r.email ?? null, now);
+        .run(r.client_name, r.slack_target, r.message, r.send_at, r.channel ?? "slack", r.email ?? null, r.phone ?? null, now);
       return get(Number(info.lastInsertRowid))!;
     },
 

@@ -6,7 +6,16 @@
       "Bash(npm install *)",
       "Bash(sudo chown *)",
       "Bash(node *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(npm test *)",
+      "Bash(curl *)",
+      "Bash(kill 80994)",
+      "Bash(npm start *)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"tsx CleverVA/index.ts\")",
+      "Bash(echo \"status: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/\\)\")",
+      "Bash(echo \"home: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/\\)\")",
+      "Bash(echo \"people: $\\(curl -s http://localhost:4321/api/slack-users\\)\")"
     ]
   }
 }
