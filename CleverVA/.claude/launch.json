@@ -5,7 +5,7 @@
       "name": "clever-va",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["tsx", "index.ts"],
-      "port": 3000,
+      "port": 4321,
       "autoPort": false
     }
   ]
