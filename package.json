@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "tsx CleverVA/index.ts",
+    "start": "tsx --env-file=CleverVA/.env CleverVA/index.ts",
     "test": "tsx --test CleverVA/*.test.ts"
   },
   "keywords": [],
