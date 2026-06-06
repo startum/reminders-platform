@@ -8,7 +8,7 @@ export interface Reminder {
   slack_target: string;
   message: string;
   send_at: string;
-  channel: "slack" | "gmail" | "sms";
+  channel: "slack" | "gmail";
   status: ReminderStatus;
   created_at: string;
   sent_at: string | null;
@@ -22,7 +22,7 @@ export interface NewReminder {
   slack_target: string;
   message: string;
   send_at: string;
-  channel?: "slack" | "gmail" | "sms";
+  channel?: "slack" | "gmail";
   email?: string | null;
   phone?: string | null;
 }
@@ -37,7 +37,7 @@ export function openDb(path: string) {
       slack_target TEXT NOT NULL,
       message TEXT NOT NULL,
       send_at TEXT NOT NULL,
-      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail','sms')),
+      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail')),
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
       email TEXT,
       phone TEXT,
