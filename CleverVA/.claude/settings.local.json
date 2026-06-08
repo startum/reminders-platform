@@ -6,7 +6,17 @@
       "Bash(pkill -f \"tsx.*index.ts\")",
       "Bash(curl -s -X PATCH http://localhost:4321/api/reminders/1 -H 'content-type: application/json' -d '{\"send_at\":\"not-a-date\"}')",
       "mcp__Claude_Preview__preview_start",
-      "Bash(curl -s -X PATCH http://localhost:4321/api/reminders/999 -H 'content-type: application/json' -d '{\"send_at\":\"not-a-date\"}')"
+      "Bash(curl -s -X PATCH http://localhost:4321/api/reminders/999 -H 'content-type: application/json' -d '{\"send_at\":\"not-a-date\"}')",
+      "Bash(node -e \"require\\('docx'\\)\")",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('/Users/deborahbutler/.nvm/versions/node/v20.15.0/lib/node_modules/docx'\\)\")",
+      "Bash(mkdir -p /tmp/docx-build)",
+      "Bash(npm init *)",
+      "Bash(cp /tmp/build-cleverva-proposal.js /tmp/docx-build/)",
+      "Bash(node build-cleverva-proposal.js)",
+      "Bash(pip3 install *)",
+      "Bash(python3 __TRACKED_VAR__/scripts/office/validate.py '/Users/deborahbutler/Downloads/CleverVA Proposal - SDK.docx')"
     ]
   }
 }
