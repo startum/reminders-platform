@@ -15,7 +15,17 @@
       "Bash(pkill -f \"tsx CleverVA/index.ts\")",
       "Bash(echo \"status: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/\\)\")",
       "Bash(echo \"home: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/\\)\")",
-      "Bash(echo \"people: $\\(curl -s http://localhost:4321/api/slack-users\\)\")"
+      "Bash(echo \"people: $\\(curl -s http://localhost:4321/api/slack-users\\)\")",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(brew install *)",
+      "Bash(echo \"===EXIT:$?===\")",
+      "Bash(grep -vE '^$')",
+      "Bash(~/.local/bin/gh --version)",
+      "Bash(md5)",
+      "Bash(python3 -c \"import git_filter_repo\")",
+      "Bash(export FILTER_BRANCH_SQUELCH_WARNING=1)",
+      "Bash(echo \"clean: $?\")"
     ]
   }
 }
