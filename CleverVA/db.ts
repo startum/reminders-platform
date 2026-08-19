@@ -1,9 +1,9 @@
-import Database from "better-sqlite3";
+import { createZapierSdk } from "@zapier/zapier-sdk";
 
 export type ReminderStatus = "pending" | "sent" | "failed";
 
 export interface Reminder {
-  id: number;
+  id: string;
   client_name: string;
   slack_target: string;
   message: string;
@@ -39,116 +39,137 @@ export interface UpdateReminder {
   connection_id?: string | null;
 }
 
-export function openDb(path: string) {
-  const db = new Database(path);
-  db.pragma("journal_mode = WAL");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reminders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      client_name TEXT NOT NULL,
-      slack_target TEXT NOT NULL,
-      message TEXT NOT NULL,
-      send_at TEXT NOT NULL,
-      channel TEXT NOT NULL DEFAULT 'slack' CHECK(channel IN ('slack','gmail')),
-      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
-      email TEXT,
-      phone TEXT,
-      connection_id TEXT,
-      created_at TEXT NOT NULL,
-      sent_at TEXT,
-      error TEXT
-    );
-  `);
+/** Zapier Tables returns labelled fields as {value,label}; everything else as-is. */
+function unwrap(v: any): any {
+  if (v && typeof v === "object" && "value" in v) return v.value;
+  return v;
+}
 
-  const cols = (db.prepare("PRAGMA table_info(reminders)").all() as { name: string }[]).map((c) => c.name);
-  if (!cols.includes("channel")) {
-    db.exec("ALTER TABLE reminders ADD COLUMN channel TEXT NOT NULL DEFAULT 'slack'");
-  }
-  if (!cols.includes("email")) {
-    db.exec("ALTER TABLE reminders ADD COLUMN email TEXT");
-  }
-  if (!cols.includes("phone")) {
-    db.exec("ALTER TABLE reminders ADD COLUMN phone TEXT");
-  }
-  if (!cols.includes("connection_id")) {
-    db.exec("ALTER TABLE reminders ADD COLUMN connection_id TEXT");
+/** Flattens a Zapier Tables record into a Reminder. */
+export function toReminder(record: any): Reminder {
+  const d = record?.data ?? {};
+  return {
+    id: record.id,
+    client_name: d.client_name ?? "",
+    slack_target: d.slack_target ?? "",
+    message: d.message ?? "",
+    send_at: d.send_at ?? "",
+    channel: (unwrap(d.channel) ?? "slack") as "slack" | "gmail",
+    status: (unwrap(d.status) ?? "pending") as ReminderStatus,
+    created_at: d.created_at ?? "",
+    sent_at: d.sent_at ?? null,
+    email: d.email ?? null,
+    phone: d.phone ?? null,
+    connection_id: d.connection_id ?? null,
+    error: d.error ?? null,
+  };
+}
+
+export function openDb(_ignored?: string) {
+  const zapier = createZapierSdk();
+  const table = process.env.ZAPIER_TABLE_ID;
+
+  if (!table) throw new Error("ZAPIER_TABLE_ID is not set");
+
+  async function all(): Promise<Reminder[]> {
+    const { data } = await zapier.listTableRecords({ table });
+    return (data ?? []).map(toReminder);
   }
 
-  function get(id: number): Reminder | undefined {
-    return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
+  async function get(id: string): Promise<Reminder | undefined> {
+    try {
+      const { data } = await zapier.getTableRecord({ table, record: id });
+      return data ? toReminder(data) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   return {
-    create(r: NewReminder, now: string): Reminder {
-      const info = db
-        .prepare(
-          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, phone, connection_id, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-        )
-        .run(
-          r.client_name,
-          r.slack_target,
-          r.message,
-          r.send_at,
-          r.channel ?? "slack",
-          r.email ?? null,
-          r.phone ?? null,
-          r.connection_id ?? null,
-          now,
-        );
-      return get(Number(info.lastInsertRowid))!;
+    async create(r: NewReminder, now: string): Promise<Reminder> {
+      const { data } = await zapier.createTableRecords({
+        table,
+        records: [
+          {
+            data: {
+              client_name: r.client_name,
+              slack_target: r.slack_target,
+              message: r.message,
+              send_at: r.send_at,
+              channel: r.channel ?? "slack",
+              status: "pending",
+              email: r.email ?? null,
+              phone: r.phone ?? null,
+              connection_id: r.connection_id ?? null,
+              created_at: now,
+            },
+          },
+        ],
+      });
+      const created = Array.isArray(data) ? data[0] : data;
+      return toReminder(created);
     },
 
     get,
 
-    listPending(): Reminder[] {
-      return db
-        .prepare(`SELECT * FROM reminders WHERE status = 'pending' ORDER BY send_at ASC`)
-        .all() as Reminder[];
+    async listPending(): Promise<Reminder[]> {
+      return (await all())
+        .filter((r) => r.status === "pending")
+        .sort((a, b) => a.send_at.localeCompare(b.send_at));
     },
 
-    listDue(now: string): Reminder[] {
-      return db
-        .prepare(`SELECT * FROM reminders WHERE status = 'pending' AND send_at <= ? ORDER BY send_at ASC`)
-        .all(now) as Reminder[];
+    async listDue(now: string): Promise<Reminder[]> {
+      return (await all())
+        .filter((r) => r.status === "pending" && r.send_at && r.send_at <= now)
+        .sort((a, b) => a.send_at.localeCompare(b.send_at));
     },
 
-    listSent(): Reminder[] {
-      return db
-        .prepare(`SELECT * FROM reminders WHERE status IN ('sent', 'failed') ORDER BY sent_at DESC`)
-        .all() as Reminder[];
+    async listSent(): Promise<Reminder[]> {
+      return (await all())
+        .filter((r) => r.status === "sent" || r.status === "failed")
+        .sort((a, b) => String(b.sent_at ?? "").localeCompare(String(a.sent_at ?? "")));
     },
 
-    markSent(id: number, sentAt: string): void {
-      db.prepare(`UPDATE reminders SET status = 'sent', sent_at = ?, error = NULL WHERE id = ?`).run(sentAt, id);
+    async markSent(id: string, sentAt: string): Promise<void> {
+      await zapier.updateTableRecords({
+        table,
+        records: [{ id, data: { status: "sent", sent_at: sentAt, error: null } }],
+      });
     },
 
-    markFailed(id: number, error: string, sentAt: string): void {
-      db.prepare(`UPDATE reminders SET status = 'failed', sent_at = ?, error = ? WHERE id = ?`).run(sentAt, error, id);
+    async markFailed(id: string, error: string, sentAt: string): Promise<void> {
+      await zapier.updateTableRecords({
+        table,
+        records: [{ id, data: { status: "failed", sent_at: sentAt, error } }],
+      });
     },
 
-    cancel(id: number): boolean {
-      const info = db.prepare(`DELETE FROM reminders WHERE id = ? AND status = 'pending'`).run(id);
-      return info.changes > 0;
+    async cancel(id: string): Promise<boolean> {
+      const existing = await get(id);
+      if (!existing || existing.status !== "pending") return false;
+      await zapier.deleteTableRecords({ table, records: [id] });
+      return true;
     },
 
-    update(id: number, fields: UpdateReminder): Reminder | undefined {
+    async update(id: string, fields: UpdateReminder): Promise<Reminder | undefined> {
+      const existing = await get(id);
+      if (!existing || existing.status !== "pending") return undefined;
+
       const allowed: (keyof UpdateReminder)[] = [
         "client_name", "slack_target", "message", "send_at", "channel", "email", "connection_id",
       ];
-      const entries = (Object.keys(fields) as (keyof UpdateReminder)[])
-        .filter((k) => allowed.includes(k) && fields[k] !== undefined);
-      if (!entries.length) return get(id);
-      const setClauses = entries.map((k) => `${k} = ?`).join(", ");
-      const values = entries.map((k) => fields[k] ?? null);
-      const info = db
-        .prepare(`UPDATE reminders SET ${setClauses} WHERE id = ? AND status = 'pending'`)
-        .run(...values, id);
-      return info.changes > 0 ? get(id) : undefined;
+      const payload: Record<string, any> = {};
+      for (const k of allowed) {
+        if (fields[k] !== undefined) payload[k] = fields[k] ?? null;
+      }
+      if (!Object.keys(payload).length) return existing;
+
+      await zapier.updateTableRecords({ table, records: [{ id, data: payload }] });
+      return get(id);
     },
 
-    close(): void {
-      db.close();
+    async close(): Promise<void> {
+      // no-op: nothing to close
     },
   };
 }
