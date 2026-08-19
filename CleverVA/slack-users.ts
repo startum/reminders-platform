@@ -26,16 +26,24 @@ export function toPeople(rawMembers: any[], connectionId: string, workspace: str
     }));
 }
 
+/** True if a Zapier connection is an active Slack connection. */
+export function isActiveSlackConnection(c: any): boolean {
+  if (!c) return false;
+  const isSlack =
+    c.slug === "slack" || String(c.app_key ?? "").toLowerCase().startsWith("slack");
+  return isSlack && String(c.is_expired) !== "true";
+}
+
 /** Fetches people from every connected Slack workspace. */
 export async function fetchSlackUsers(): Promise<SlackUser[]> {
   const zapier = createZapierSdk();
 
   const { data: connections } = await zapier.listConnections({
-    appKey: "slack",
     owner: "me",
   });
 
-  const active = (connections ?? []).filter((c: any) => !c.is_expired);
+  const active = (connections ?? []).filter(isActiveSlackConnection);
+
   if (active.length === 0) {
     throw new Error("No Slack connections found on this Zapier account");
   }
@@ -45,7 +53,7 @@ export async function fetchSlackUsers(): Promise<SlackUser[]> {
   for (const connection of active) {
     try {
       const res: any = await zapier.runAction({
-        app: "slack",
+        app: connection.app_key,
         actionType: "read",
         action: "users",
         connectionId: connection.id,
