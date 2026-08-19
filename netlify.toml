@@ -2,6 +2,12 @@
   functions = "netlify/functions"
   publish = "public"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions.api]
+  external_node_modules = ["@napi-rs/keyring", "better-sqlite3"]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/api/:splat"
