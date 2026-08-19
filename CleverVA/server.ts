@@ -1,15 +1,10 @@
 import express from "express";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Store, UpdateReminder } from "./db.ts";
 import type { SlackUserCache } from "./slack-users.ts";
-
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 export function createServer(db: Store, slackUsers: SlackUserCache) {
   const app = express();
   app.use(express.json());
-  app.use(express.static(path.join(here, "public")));
 
   app.post("/api/reminders", (req, res) => {
     const { client_name, slack_target, message, send_at, channel: rawChannel, email } = req.body ?? {};
