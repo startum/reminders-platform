@@ -1,8 +1,5 @@
 import { createZapierSdk } from "@zapier/zapier-sdk";
 
-// Reused from slack.ts / src/zapier-slack-test.ts
-const CONNECTION_ID = "02687b2e-345c-860b-9d27-533f33afee39";
-
 export interface SlackUser {
   id: string;
   name: string;
@@ -27,17 +24,28 @@ export function toPeople(rawMembers: any[]): SlackUser[] {
 }
 
 /** Fetches the workspace's people via the Zapier Slack `users` read action. */
+/** Fetches the workspace's people via the Zapier Slack `users` read action. */
 export async function fetchSlackUsers(): Promise<SlackUser[]> {
   const zapier = createZapierSdk();
-  const { data: profile } = await zapier.getProfile();
-console.log("Zapier account:", profile);
+
+  const { data: connection } = await zapier.findFirstConnection({
+    appKey: "slack",
+    owner: "me",
+    isExpired: false,
+  });
+
+  if (!connection) {
+    throw new Error("No Slack connection found on this Zapier account");
+  }
+
   const res: any = await zapier.runAction({
     app: "slack",
     actionType: "read",
     action: "users",
-    connectionId: CONNECTION_ID,
+    connectionId: connection.id,
     inputs: {},
   });
+
   const members = Array.isArray(res?.data) ? res.data : [];
   return toPeople(members);
 }

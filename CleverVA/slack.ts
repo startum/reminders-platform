@@ -1,19 +1,26 @@
-/** Sends `text` to a Slack member id `target` as the VA's personal account. */
+import { createZapierSdk } from "@zapier/zapier-sdk";
+
+/** Sends `text` to a Slack member id `target`. */
 export type SlackSender = (target: string, text: string) => Promise<void>;
 
 export const zapierSlackSender: SlackSender = async (target, text) => {
-  const token = process.env.SLACK_USER_TOKEN;
-  if (!token) throw new Error("SLACK_USER_TOKEN is not set");
+  const zapier = createZapierSdk();
 
-  const res = await fetch("https://slack.com/api/chat.postMessage", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ channel: target, text }),
+  const { data: connection } = await zapier.findFirstConnection({
+    appKey: "slack",
+    owner: "me",
+    isExpired: false,
   });
 
-  const body: any = await res.json();
-  if (!body.ok) throw new Error(`Slack error: ${body.error}`);
+  if (!connection) {
+    throw new Error("No Slack connection found on this Zapier account");
+  }
+
+  await zapier.runAction({
+    app: "slack",
+    actionType: "write",
+    action: "direct_message",
+    connectionId: connection.id,
+    inputs: { channel: target, text },
+  });
 };

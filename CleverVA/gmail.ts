@@ -10,13 +10,22 @@ export function buildGmailInputs(to: string, subject: string, body: string) {
 
 export const zapierGmailSender: GmailSender = async (to, subject, body) => {
   const zapier = createZapierSdk();
-  const connectionId = process.env.GMAIL_CONNECTION_ID;
-  if (!connectionId) throw new Error("GMAIL_CONNECTION_ID is not set");
+
+  const { data: connection } = await zapier.findFirstConnection({
+    appKey: "gmail",
+    owner: "me",
+    isExpired: false,
+  });
+
+  if (!connection) {
+    throw new Error("No Gmail connection found on this Zapier account");
+  }
+
   await zapier.runAction({
     app: "gmail",
     actionType: "write",
     action: "message",
-    connectionId,
+    connectionId: connection.id,
     inputs: buildGmailInputs(to, subject, body),
   });
 };
