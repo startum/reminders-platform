@@ -3,10 +3,12 @@ import { createZapierSdk } from "@zapier/zapier-sdk";
 export interface SlackUser {
   id: string;
   name: string;
+  connectionId: string;
+  workspace: string;
 }
 
-/** Filters raw Slack members down to real people and maps them to {id, name}, sorted by name. */
-export function toPeople(rawMembers: any[]): SlackUser[] {
+/** Filters raw Slack members down to real people. */
+export function toPeople(rawMembers: any[], connectionId: string, workspace: string): SlackUser[] {
   return rawMembers
     .filter(
       (m) =>
@@ -19,42 +21,54 @@ export function toPeople(rawMembers: any[]): SlackUser[] {
     .map((m) => ({
       id: m.id,
       name: m.real_name || m.profile?.display_name || m.name || m.id,
-    }))
-    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+      connectionId,
+      workspace,
+    }));
 }
 
-/** Fetches the workspace's people via the Zapier Slack `users` read action. */
-/** Fetches the workspace's people via the Zapier Slack `users` read action. */
+/** Fetches people from every connected Slack workspace. */
 export async function fetchSlackUsers(): Promise<SlackUser[]> {
   const zapier = createZapierSdk();
 
-  const { data: connection } = await zapier.findFirstConnection({
+  const { data: connections } = await zapier.listConnections({
     appKey: "slack",
     owner: "me",
-    isExpired: false,
   });
 
-  if (!connection) {
-    throw new Error("No Slack connection found on this Zapier account");
+  const active = (connections ?? []).filter((c: any) => !c.is_expired);
+  if (active.length === 0) {
+    throw new Error("No Slack connections found on this Zapier account");
   }
 
-  const res: any = await zapier.runAction({
-    app: "slack",
-    actionType: "read",
-    action: "users",
-    connectionId: connection.id,
-    inputs: {},
-  });
+  const all: SlackUser[] = [];
 
-  const members = Array.isArray(res?.data) ? res.data : [];
-  return toPeople(members);
+  for (const connection of active) {
+    try {
+      const res: any = await zapier.runAction({
+        app: "slack",
+        actionType: "read",
+        action: "users",
+        connectionId: connection.id,
+        inputs: {},
+      });
+      const members = Array.isArray(res?.data) ? res.data : [];
+      all.push(...toPeople(members, connection.id, connection.title ?? "Slack"));
+    } catch (err) {
+      console.error(`Could not load users for connection ${connection.id}:`, err);
+    }
+  }
+
+  return all.sort((a, b) => {
+    const w = a.workspace.toLowerCase().localeCompare(b.workspace.toLowerCase());
+    return w !== 0 ? w : a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  });
 }
 
 export type SlackUserCache = {
   get(forceRefresh?: boolean): Promise<SlackUser[]>;
 };
 
-/** Caches the people list for `ttlMs`. `now` is injectable for deterministic tests. */
+/** Caches the people list for `ttlMs`. */
 export function createSlackUserCache(
   fetcher: () => Promise<SlackUser[]>,
   ttlMs = 600_000,

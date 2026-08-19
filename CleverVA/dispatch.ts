@@ -15,6 +15,7 @@ export function createReminderSender(senders: {
       await senders.gmail(r.email, `Reminder: ${r.client_name}`, r.message);
       return;
     }
-    await senders.slack(r.slack_target, r.message);
+    if (!r.connection_id) throw new Error(`slack reminder ${r.id} has no connection_id`);
+    await senders.slack(r.slack_target, r.message, r.connection_id);
   };
 }

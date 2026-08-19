@@ -7,7 +7,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
   app.use(express.json());
 
   app.post("/api/reminders", (req, res) => {
-    const { client_name, slack_target, message, send_at, channel: rawChannel, email } = req.body ?? {};
+    const { client_name, slack_target, message, send_at, channel: rawChannel, email, connection_id } = req.body ?? {};
     const channel = rawChannel ?? "slack";
 
     if (
@@ -30,12 +30,18 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
 
     let target = "";
     let emailVal: string | null = null;
+    let connectionVal: string | null = null;
     if (channel === "slack") {
       if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
         res.status(400).json({ error: "slack_target is required for a Slack reminder" });
         return;
       }
+      if (typeof connection_id !== "string" || connection_id.trim().length === 0) {
+        res.status(400).json({ error: "connection_id is required for a Slack reminder" });
+        return;
+      }
       target = slack_target.trim();
+      connectionVal = connection_id.trim();
     } else {
       const e = typeof email === "string" ? email.trim() : "";
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
@@ -53,6 +59,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
         send_at: new Date(parsed).toISOString(),
         channel,
         email: emailVal,
+        connection_id: connectionVal,
       },
       new Date().toISOString(),
     );
@@ -74,7 +81,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       return;
     }
 
-    const { client_name, slack_target, message, send_at, channel, email } = req.body ?? {};
+    const { client_name, slack_target, message, send_at, channel, email, connection_id } = req.body ?? {};
     const fields: UpdateReminder = {};
 
     if (client_name !== undefined) {
@@ -120,6 +127,13 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
         }
         fields.slack_target = slack_target.trim();
       }
+      if (connection_id !== undefined) {
+        if (typeof connection_id !== "string" || connection_id.trim().length === 0) {
+          res.status(400).json({ error: "connection_id must be a non-empty string" });
+          return;
+        }
+        fields.connection_id = connection_id.trim();
+      }
     } else if (effectiveChannel === "gmail") {
       if (email !== undefined) {
         const e = typeof email === "string" ? email.trim() : "";
@@ -129,6 +143,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
         }
         fields.email = e;
         fields.slack_target = "";
+        fields.connection_id = null;
       }
     }
 

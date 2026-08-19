@@ -14,6 +14,7 @@ export interface Reminder {
   sent_at: string | null;
   email: string | null;
   phone: string | null;
+  connection_id: string | null;
   error: string | null;
 }
 
@@ -25,6 +26,7 @@ export interface NewReminder {
   channel?: "slack" | "gmail";
   email?: string | null;
   phone?: string | null;
+  connection_id?: string | null;
 }
 
 export interface UpdateReminder {
@@ -34,6 +36,7 @@ export interface UpdateReminder {
   send_at?: string;
   channel?: "slack" | "gmail";
   email?: string | null;
+  connection_id?: string | null;
 }
 
 export function openDb(path: string) {
@@ -50,6 +53,7 @@ export function openDb(path: string) {
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed')),
       email TEXT,
       phone TEXT,
+      connection_id TEXT,
       created_at TEXT NOT NULL,
       sent_at TEXT,
       error TEXT
@@ -66,6 +70,9 @@ export function openDb(path: string) {
   if (!cols.includes("phone")) {
     db.exec("ALTER TABLE reminders ADD COLUMN phone TEXT");
   }
+  if (!cols.includes("connection_id")) {
+    db.exec("ALTER TABLE reminders ADD COLUMN connection_id TEXT");
+  }
 
   function get(id: number): Reminder | undefined {
     return db.prepare(`SELECT * FROM reminders WHERE id = ?`).get(id) as Reminder | undefined;
@@ -75,10 +82,20 @@ export function openDb(path: string) {
     create(r: NewReminder, now: string): Reminder {
       const info = db
         .prepare(
-          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, phone, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+          `INSERT INTO reminders (client_name, slack_target, message, send_at, channel, email, phone, connection_id, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
         )
-        .run(r.client_name, r.slack_target, r.message, r.send_at, r.channel ?? "slack", r.email ?? null, r.phone ?? null, now);
+        .run(
+          r.client_name,
+          r.slack_target,
+          r.message,
+          r.send_at,
+          r.channel ?? "slack",
+          r.email ?? null,
+          r.phone ?? null,
+          r.connection_id ?? null,
+          now,
+        );
       return get(Number(info.lastInsertRowid))!;
     },
 
@@ -117,7 +134,7 @@ export function openDb(path: string) {
 
     update(id: number, fields: UpdateReminder): Reminder | undefined {
       const allowed: (keyof UpdateReminder)[] = [
-        "client_name", "slack_target", "message", "send_at", "channel", "email",
+        "client_name", "slack_target", "message", "send_at", "channel", "email", "connection_id",
       ];
       const entries = (Object.keys(fields) as (keyof UpdateReminder)[])
         .filter((k) => allowed.includes(k) && fields[k] !== undefined);

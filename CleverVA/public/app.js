@@ -24,12 +24,37 @@ function toLocalDatetimeValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildSlackOptions(currentTarget) {
+/** Groups people by workspace and returns <optgroup> markup. */
+function groupPeopleOptions(people, selectedTarget, selectedConnection) {
+  const groups = {};
+  people.forEach((p) => {
+    const key = p.workspace || "Slack";
+    (groups[key] = groups[key] || []).push(p);
+  });
+  return Object.keys(groups)
+    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+    .map((ws) => {
+      const opts = groups[ws]
+        .map((p) => {
+          const isSelected = p.id === selectedTarget && (!selectedConnection || p.connectionId === selectedConnection);
+          return `<option value="${esc(p.id)}" data-connection-id="${esc(p.connectionId)}"${isSelected ? " selected" : ""}>${esc(p.name)}</option>`;
+        })
+        .join("");
+      return `<optgroup label="${esc(ws)}">${opts}</optgroup>`;
+    })
+    .join("");
+}
+
+function buildSlackOptions(currentTarget, currentConnection) {
   const cached = window.__slackPeople || [];
   if (!cached.length) return `<option value="${esc(currentTarget)}">${esc(currentTarget)}</option>`;
-  return cached.map((p) =>
-    `<option value="${esc(p.id)}"${p.id === currentTarget ? " selected" : ""}>${esc(p.name)}</option>`
-  ).join("");
+  return groupPeopleOptions(cached, currentTarget, currentConnection);
+}
+
+/** Reads the connection id off the currently selected option of a <select>. */
+function connectionIdFrom(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  return opt ? opt.dataset.connectionId || "" : "";
 }
 
 function buildEditForm(r, slackPeopleOptions) {
@@ -79,7 +104,7 @@ async function loadPeople(force = false) {
     }
     slackTarget.innerHTML =
       `<option value="" disabled selected>Select a person…</option>` +
-      people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+      groupPeopleOptions(people, null, null);
   } catch {
     slackTarget.innerHTML = `<option value="">Couldn't load people — try Refresh</option>`;
   }
@@ -154,6 +179,15 @@ form.addEventListener("submit", async (e) => {
     data.send_at = resolvePreset(preset).toISOString();
   }
   delete data.schedule_preset;
+
+  if ((data.channel ?? "slack") === "slack") {
+    data.connection_id = connectionIdFrom(slackTarget);
+    if (!data.connection_id) {
+      formMsg.textContent = "Please select a person from the list.";
+      formMsg.className = "msg err";
+      return;
+    }
+  }
 
   const res = await fetch("/api/reminders", {
     method: "POST",
@@ -257,7 +291,7 @@ function expandEditForm(card) {
   card.dataset.editing = "1";
   const readDiv = card.querySelector(".card-read");
   readDiv.style.display = "none";
-  const formHtml = buildEditForm(r, buildSlackOptions(r.slack_target));
+  const formHtml = buildEditForm(r, buildSlackOptions(r.slack_target, r.connection_id));
   card.insertAdjacentHTML("beforeend", formHtml);
   lucide.createIcons();
 
@@ -281,6 +315,17 @@ function expandEditForm(card) {
     const data = Object.fromEntries(new FormData(form));
     const errEl = form.querySelector(".card-edit-error");
     errEl.classList.remove("visible");
+
+    if ((data.channel ?? "slack") === "slack") {
+      const sel = form.querySelector("select[name='slack_target']");
+      data.connection_id = connectionIdFrom(sel);
+      if (!data.connection_id) {
+        errEl.textContent = "Please select a person from the list.";
+        errEl.classList.add("visible");
+        return;
+      }
+    }
+
     const res = await fetch(`/api/reminders/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -340,9 +385,17 @@ async function loadSent() {
 // ── Channel selector ──
 const channelInput = document.getElementById("channel-input");
 
+/** Looks up the workspace label for a stored reminder. */
+function workspaceFor(r) {
+  const cached = window.__slackPeople || [];
+  const match = cached.find((p) => p.id === r.slack_target && p.connectionId === r.connection_id);
+  return match ? match.workspace : "";
+}
+
 function fmtTarget(r) {
   if (r.channel === "gmail") return `via email · ${esc(r.email || "")}`;
-  return `via Slack · ${esc(r.slack_target)}`;
+  const ws = workspaceFor(r);
+  return `via Slack · ${esc(r.slack_target)}${ws ? ` · ${esc(ws)}` : ""}`;
 }
 
 document.querySelectorAll(".channel-btn").forEach((btn) => {
@@ -395,7 +448,12 @@ function updatePreview() {
     recipientVal = (document.getElementById("email-input") || {}).value || "";
   } else {
     const slackOpt = slackTarget.options[slackTarget.selectedIndex];
-    recipientVal = (slackOpt && slackOpt.value) ? `@${slackOpt.text}` : "";
+    if (slackOpt && slackOpt.value) {
+      const ws = slackOpt.parentElement && slackOpt.parentElement.tagName === "OPTGROUP"
+        ? slackOpt.parentElement.label
+        : "";
+      recipientVal = `@${slackOpt.text}${ws ? ` (${ws})` : ""}`;
+    }
   }
 
   const presetInput = document.querySelector("input[name='schedule_preset']:checked");
