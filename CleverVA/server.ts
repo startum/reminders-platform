@@ -6,7 +6,7 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
   const app = express();
   app.use(express.json());
 
-  app.post("/api/reminders", (req, res) => {
+  app.post("/api/reminders", async (req, res) => {
     const { client_name, slack_target, message, send_at, channel: rawChannel, email, connection_id } = req.body ?? {};
     const channel = rawChannel ?? "slack";
 
@@ -51,32 +51,42 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       emailVal = e;
     }
 
-    const reminder = db.create(
-      {
-        client_name: client_name.trim(),
-        slack_target: target,
-        message: message.trim(),
-        send_at: new Date(parsed).toISOString(),
-        channel,
-        email: emailVal,
-        connection_id: connectionVal,
-      },
-      new Date().toISOString(),
-    );
-    res.status(201).json(reminder);
-  });
-
-  app.get("/api/reminders", (req, res) => {
-    if (req.query.status === "sent") {
-      res.json(db.listSent());
-      return;
+    try {
+      const reminder = await db.create(
+        {
+          client_name: client_name.trim(),
+          slack_target: target,
+          message: message.trim(),
+          send_at: new Date(parsed).toISOString(),
+          channel,
+          email: emailVal,
+          connection_id: connectionVal,
+        },
+        new Date().toISOString(),
+      );
+      res.status(201).json(reminder);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: `Could not save reminder: ${m}` });
     }
-    res.json(db.listPending());
   });
 
-  app.patch("/api/reminders/:id", (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
+  app.get("/api/reminders", async (req, res) => {
+    try {
+      if (req.query.status === "sent") {
+        res.json(await db.listSent());
+        return;
+      }
+      res.json(await db.listPending());
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: `Could not load reminders: ${m}` });
+    }
+  });
+
+  app.patch("/api/reminders/:id", async (req, res) => {
+    const id = String(req.params.id ?? "").trim();
+    if (!id) {
       res.status(400).json({ error: "invalid id" });
       return;
     }
@@ -117,42 +127,48 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
       fields.channel = channel;
     }
 
-    const effectiveChannel = (fields.channel ?? db.get(id)?.channel) as string | undefined;
+    try {
+      const current = await db.get(id);
+      const effectiveChannel = (fields.channel ?? current?.channel) as string | undefined;
 
-    if (effectiveChannel === "slack") {
-      if (slack_target !== undefined) {
-        if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
-          res.status(400).json({ error: "slack_target must be a non-empty string" });
-          return;
+      if (effectiveChannel === "slack") {
+        if (slack_target !== undefined) {
+          if (typeof slack_target !== "string" || slack_target.trim().length === 0) {
+            res.status(400).json({ error: "slack_target must be a non-empty string" });
+            return;
+          }
+          fields.slack_target = slack_target.trim();
         }
-        fields.slack_target = slack_target.trim();
-      }
-      if (connection_id !== undefined) {
-        if (typeof connection_id !== "string" || connection_id.trim().length === 0) {
-          res.status(400).json({ error: "connection_id must be a non-empty string" });
-          return;
+        if (connection_id !== undefined) {
+          if (typeof connection_id !== "string" || connection_id.trim().length === 0) {
+            res.status(400).json({ error: "connection_id must be a non-empty string" });
+            return;
+          }
+          fields.connection_id = connection_id.trim();
         }
-        fields.connection_id = connection_id.trim();
-      }
-    } else if (effectiveChannel === "gmail") {
-      if (email !== undefined) {
-        const e = typeof email === "string" ? email.trim() : "";
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
-          res.status(400).json({ error: "a valid email is required for an email reminder" });
-          return;
+      } else if (effectiveChannel === "gmail") {
+        if (email !== undefined) {
+          const e = typeof email === "string" ? email.trim() : "";
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+            res.status(400).json({ error: "a valid email is required for an email reminder" });
+            return;
+          }
+          fields.email = e;
+          fields.slack_target = "";
+          fields.connection_id = null;
         }
-        fields.email = e;
-        fields.slack_target = "";
-        fields.connection_id = null;
       }
-    }
 
-    const updated = db.update(id, fields);
-    if (!updated) {
-      res.status(404).json({ error: "reminder not found or already sent" });
-      return;
+      const updated = await db.update(id, fields);
+      if (!updated) {
+        res.status(404).json({ error: "reminder not found or already sent" });
+        return;
+      }
+      res.json(updated);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: `Could not update reminder: ${m}` });
     }
-    res.json(updated);
   });
 
   app.get("/api/slack-users", async (req, res) => {
@@ -165,14 +181,19 @@ export function createServer(db: Store, slackUsers: SlackUserCache) {
     }
   });
 
-  app.delete("/api/reminders/:id", (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
+  app.delete("/api/reminders/:id", async (req, res) => {
+    const id = String(req.params.id ?? "").trim();
+    if (!id) {
       res.status(400).json({ error: "invalid id" });
       return;
     }
-    const ok = db.cancel(id);
-    res.status(ok ? 204 : 404).end();
+    try {
+      const ok = await db.cancel(id);
+      res.status(ok ? 204 : 404).end();
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: `Could not cancel reminder: ${m}` });
+    }
   });
 
   return app;

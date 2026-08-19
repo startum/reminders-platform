@@ -285,7 +285,7 @@ function renderUpcoming() {
 }
 
 function expandEditForm(card) {
-  const id = Number(card.dataset.id);
+    const id = card.dataset.id;
   const r = upcomingItems.find((x) => x.id === id);
   if (!r) return;
   card.dataset.editing = "1";
