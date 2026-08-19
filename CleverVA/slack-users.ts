@@ -29,6 +29,8 @@ export function toPeople(rawMembers: any[]): SlackUser[] {
 /** Fetches the workspace's people via the Zapier Slack `users` read action. */
 export async function fetchSlackUsers(): Promise<SlackUser[]> {
   const zapier = createZapierSdk();
+  const { data: profile } = await zapier.getProfile();
+console.log("Zapier account:", profile);
   const res: any = await zapier.runAction({
     app: "slack",
     actionType: "read",
