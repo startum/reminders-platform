@@ -1,6 +1,6 @@
 import { createZapierSdk } from "@zapier/zapier-sdk";
 
-/** Sends `text` to Slack member `target` via the given connection. */
+/** Sends `text` to Slack member `target` via the given connection, as the user (not a bot). */
 export type SlackSender = (target: string, text: string, connectionId: string) => Promise<void>;
 
 export const zapierSlackSender: SlackSender = async (target, text, connectionId) => {
@@ -13,6 +13,11 @@ export const zapierSlackSender: SlackSender = async (target, text, connectionId)
     actionType: "write",
     action: "direct_message",
     connectionId,
-    inputs: { channel: target, text },
+    inputs: {
+      channel: target,
+      text,
+      as_bot: "no",
+      add_edit_link: "no",
+    },
   });
 };
